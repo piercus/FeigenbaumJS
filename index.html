@@ -18,8 +18,10 @@ svg {
   display: block;
 }
 
-#chart1 svg {
+#chart1 svg,#chart2 svg {
   height: 500px;
+  width:600px;
+  float: left;
   min-width: 200px;
   min-height: 100px;
 /*
@@ -30,14 +32,29 @@ svg {
 */
 
 }
-#chart1 {
+
+a.reset-button {
+  text-decoration: underline;
+  color : blue;
+}
+
+a:hover {
+  cursor : pointer;
+}
+
+#chart1, #chart2 {
   margin-top: 200px;
   margin-left: 100px;
 }
+
+
 </style>
 <body class='with-3d-shadow with-transitions'>
-
 <div id="chart1" >
+  <svg style="height: 500px;"></svg>
+</div>
+
+<div id="chart2" >
   <svg style="height: 500px;"></svg>
 </div>
 

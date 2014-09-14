@@ -1,8 +1,5 @@
 
 var chart;
-var f1 = function(p, x){
-  return p*x*(1-x);
-}
 
 /*These lines are all chart setup.  Pick and choose which chart features you want to utilize. */
 nv.addGraph(function() {
@@ -13,8 +10,7 @@ nv.addGraph(function() {
     showXAxis: true,
     showYAxis: true,
     //transitionDuration: 250
-  })
-  ;
+  }).showLegend(false);
 
   // chart sub-models (ie. xAxis, yAxis, etc) when accessed directly, return themselves, not the parent chart, so need to chain separately
   chart.xAxis
@@ -26,31 +22,146 @@ nv.addGraph(function() {
     //.tickFormat(d3.format(',.01f'))
     ;
 
-  var box = [[1, 3.8], [0, 10]],
-      stepX = (box[0][1] - box[0][0])/100,
-      iterations = 10000,
-      sensibility = (box[1][1] - box[1][0])/1000,
-      verifAttractors = 20,
-      firstValue = 0.75;
 
+  var data;
+  var rect;
 
+  //augment highlightPoint
+  var basichighlight = chart.scatter.highlightPoint;
+  chart.scatter.highlightPoint = function(){
+    var o = basichighlight.apply(this, arguments);
+    data[arguments[0]].values[arguments[1]].x
+    return o;
+  };
 
-  var drag = d3.behavior.drag().on("drag",function(){
+  var drawBif = function(options, cb){
+    options || (options = {});
     
+    var defaultOptions = {
+        box                 : [[1, 4], [0, 1]],
+        stepXRatio          : 100,//(box[0][1] - box[0][0])/100,
+        iterations          : 10000,
+        sensibilityYRatio   : 1000,//(box[1][1] - box[1][0])/1000,
+        verifAttractors     : 20,
+        firstValue          : 0.75,
+        fn                  : function(p, x){ return p*x*(1-x); }
+      };
+
+    for (var i in defaultOptions) if(defaultOptions.hasOwnProperty(i) && (!options || !options.hasOwnProperty(i))){
+      options[i] = defaultOptions[i];
+    }
+
+    options.stepX       || (options.stepX       = (options.box[0][1] - options.box[0][0])/options.stepXRatio);
+    options.sensibility || (options.sensibility = (options.box[1][1] - options.box[1][0])/options.sensibilityYRatio);
+
+    data = getBifurcation(options);
+
+    d3.select('#chart1 svg')
+        .datum(data)
+        .call(chart);
+    
+    var drag = setDrag(options);
+
+    d3.select('#chart1').call(drag);
+
+  };
+
+  var reset = d3.select('#chart1').append("a").attr("class","reset-button").text("reset").on("click",function(){
+    drawBif();
   });
-  d3.select('#chart1 svg')
-    .datum(getBifurcation(f1, box, stepX, firstValue, iterations, sensibility, verifAttractors))
-    .call(chart);
 
-  d3.select('#chart1').call(drag);
+  var setDrag = function(options){
+      var dragX,dragY, startX, startY, box = options.box;
+
+      var resetDrag = function(){
+        dragX = 0; 
+        dragY = 0;
+      };
+
+      var resizeBox = function(x,y){
+        rect.attr("width",Math.abs(x));  
+
+        if(x>=0){
+          rect.attr("x",startX);  
+        } else {
+          rect.attr("x",startX + x); 
+        }
+
+        
+        rect.attr("height",Math.abs(y));
+        if(y>=0){
+          rect.attr("y",startY);  
+        } else {
+          rect.attr("y",startY + y); 
+        }
+
+      };
 
 
-  //TODO: Figure out a good way to do this automatically
-  nv.utils.windowResize(chart.update);
-  //nv.utils.windowResize(function() { d3.select('#chart1 svg').call(chart) });
+      var drag = d3.behavior.drag().on("drag",function(e,x,y){
+        dragX+=d3.event.dx;
+        dragY+= d3.event.dy;
+        //console.log("on drag",dragX,dragY,x,y);
 
-  chart.dispatch.on('stateChange', function(e) { nv.log('New State:', JSON.stringify(e)); });
+        resizeBox(dragX, dragY);
 
+      }).on("dragstart",function(){
+
+        d3.event.sourceEvent.stopPropagation(); // silence other listeners
+        var s = d3.select("#chart1 svg"),
+            left = s.node().getBoundingClientRect().left,
+            top = s.node().getBoundingClientRect().top;
+
+        startX = d3.event.sourceEvent.clientX-left;
+        startY = d3.event.sourceEvent.clientY-top;
+        rect = s.append("rect")
+          .attr("style", "fill:blue;stroke:blue;stroke-width:5;opacity:0.1")
+          .attr("x",startX)
+          .attr("y",startY);
+
+        //console.log("dragstart", d3.event, drag.origin());
+        resetDrag();
+        
+      }).on("dragend",function(){
+        rect.remove();
+
+        var graphRect = d3.select(".nv-groups").node().getBoundingClientRect();
+
+        var svgRect = d3.select('#chart1 svg').node().getBoundingClientRect();
+
+        var dragRect = {
+          left : Math.min(startX, startX + dragX)+svgRect.left,
+          right : Math.max(startX, startX + dragX)+svgRect.left,
+          top : Math.min(startY, startY + dragY)+svgRect.top,
+          bottom : Math.max(startY, startY + dragY)+svgRect.top
+        };
+
+        
+
+        ratioPixelScale = [
+          (box[0][1] - box[0][0])/(graphRect.right-graphRect.left),
+          (box[1][1] - box[1][0])/(graphRect.bottom-graphRect.top),
+        ];
+
+        newBox = [[
+            (dragRect.left-graphRect.left)*ratioPixelScale[0]+box[0][0],
+            (dragRect.right-graphRect.right)*ratioPixelScale[0]+box[0][1]
+          ],[
+            (-1)*(dragRect.bottom-graphRect.bottom)*ratioPixelScale[1]+box[1][0],
+            (-1)*(dragRect.top-graphRect.top)*ratioPixelScale[1]+box[1][1]
+        ]];
+
+        //console.log(newBox, dragRect, graphRect, ratioPixelScale, box);
+
+        drawBif({box : newBox})
+        
+
+      });
+
+      return drag;
+  }
+
+  drawBif();
   return chart;
 });
 /*
@@ -141,7 +252,7 @@ var findAttractors = function(p, fn, attrRange, firstValue, maxIteration, sensib
   
   if(!found){
     chaos = true;
-    console.log("chaos",p)
+    //console.log("chaos",p)
     //throw new Error("not found in "+maxIteration+" iterations");
     attractors = suite;
   }
@@ -162,18 +273,18 @@ var findAttractors = function(p, fn, attrRange, firstValue, maxIteration, sensib
   return selectedAttractors.sort(function(a,b){return a-b});
 };
 
-var getBifurcation = function(fn, box, step, firstValue, maxIteration, sensibility, verifAttractors){
+var getBifurcation = function(options){//fn, box, step, firstValue, maxIteration, sensibility, verifAttractors){
 
-  var pRange = box[0],
-      attrRange = box[1],
+  var pRange = options.box[0],
+      attrRange = options.box[1],
       minP = pRange[0], 
       maxP = pRange[1], 
-      nIter = Math.ceil((maxP-minP)/step), attractors, graphs = [], x, attractors;
+      nIter = Math.ceil((maxP-minP)/options.stepX), attractors, graphs = [], x, attractors;
 
   for(var i = 0; i < nIter; i++){
-    x = minP+i*step;
+    x = minP+i*options.stepX;
     try {
-      attractors = findAttractors(x, fn, attrRange, firstValue, maxIteration, sensibility, verifAttractors);
+      attractors = findAttractors(x, options.fn, attrRange, options.firstValue, options.maxIteration, options.sensibility, options.verifAttractors);
 
       for(var j =0; j < attractors.length; j++){
         graphs[j] ||(graphs[j] = []);
@@ -197,20 +308,24 @@ var getBifurcation = function(fn, box, step, firstValue, maxIteration, sensibili
 
 
 
-function graphs() {
-  var parabol = [],linear = [],
-      iterations = [], value = 0.78, valueBefore, a = 3.576;
+function graphs(o){//a,min,u0,fn) {
+
+  var a = o.param, min = o.min, u0 = o.u0, parabol = [],linear = [],
+      iterations = [], value = o.u0 || 0.75, valueBefore, fn = o.fn;
+
+  a ||(a= 3.576);
+  min || (min = 100);
 
   //Data is represented as an array of {x,y} pairs.
   for (var i = 0; i < 100; i++) {
-    parabol.push({x: i/100, y: fn(i/100,a)});
+    parabol.push({x: i/100, y: fn(a,i/100)});
     linear.push({x: i/100, y: i/100});
   }
 
   for (var i = 0; i < 1000; i++) {
     valueBefore = value;
-    value = Math.max(fn(valueBefore,a),0);
-    if(i>100){
+    value = Math.max(fn(a,valueBefore),0);
+    if(i+2>min){
       iterations.push({x: valueBefore, y: value});
       iterations.push({x: value, y: value});      
     }
@@ -222,7 +337,7 @@ function graphs() {
   return [
     {
       values: parabol,      //values - represents the array of {x,y} data points
-      key: 'Parabol Y = ax(1-x)', //key  - the name of the series.
+      key: 'Parabol Y = '+a+'*x*(1-x)', //key  - the name of the series.
       color: '#ff7f0e'  //color - optional: choose your own line color.
     },
     {
@@ -237,3 +352,48 @@ function graphs() {
     }
   ];
 }
+/*
+nv.addGraph(function() {
+   chart = nv.models.lineChart()
+  .options({
+    margin: {left: 100, bottom: 100},
+    //x: function(d,i) { return i},
+    showXAxis: true,
+    showYAxis: true,
+    //transitionDuration: 250
+  })
+  ;
+
+  // chart sub-models (ie. xAxis, yAxis, etc) when accessed directly, return themselves, not the parent chart, so need to chain separately
+  chart.xAxis
+    .axisLabel("X")
+    //.tickFormat(d3.format(',.01f'));
+
+  chart.yAxis
+    .axisLabel('Y')
+    //.tickFormat(d3.format(',.01f'))
+    ;
+
+  var box = [[1, 3.8], [0, 10]],
+      stepX = (box[0][1] - box[0][0])/100,
+      iterations = 10000,
+      sensibility = (box[1][1] - box[1][0])/1000,
+      verifAttractors = 20,
+      firstValue = 0.75;
+
+
+
+  
+  d3.select('#chart2 svg')
+    .datum(graphs({param : 3.56, min : 100, u0 : 0.1, fn : }))
+    .call(chart);
+
+
+  //TODO: Figure out a good way to do this automatically
+  nv.utils.windowResize(chart.update);
+  //nv.utils.windowResize(function() { d3.select('#chart1 svg').call(chart) });
+
+  //chart.dispatch.on('stateChange', function(e) { nv.log('New State:', JSON.stringify(e)); });
+
+  return chart;
+});*/
