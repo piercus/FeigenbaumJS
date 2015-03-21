@@ -77,8 +77,10 @@ nv.addGraph(function() {
         dragX = 0; 
         dragY = 0;
       };
+        console.log("in setDrag");
 
       var resizeBox = function(x,y){
+        console.log("in resizeBox");
         rect.attr("width",Math.abs(x));  
 
         if(x>=0){
