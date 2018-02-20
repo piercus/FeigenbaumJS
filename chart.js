@@ -1,6 +1,10 @@
 
 var chart;
 
+var c = document.getElementById("canvas");
+//c.addEventListener('mousedown', onMouseDown);
+var ctx = c.getContext("2d");
+
 /*These lines are all chart setup.  Pick and choose which chart features you want to utilize. */
 nv.addGraph(function() {
    chart = nv.models.scatterChart()
@@ -36,10 +40,10 @@ nv.addGraph(function() {
 
   var drawBif = function(options, cb){
     options || (options = {});
-    
+
     var defaultOptions = {
         box                 : [[1, 4], [0, 1]],
-        stepXRatio          : 100,//(box[0][1] - box[0][0])/100,
+        stepPRatio          : 1000,//(box[0][1] - box[0][0])/100,
         iterations          : 10000,
         sensibilityYRatio   : 1000,//(box[1][1] - box[1][0])/1000,
         verifAttractors     : 20,
@@ -51,50 +55,73 @@ nv.addGraph(function() {
       options[i] = defaultOptions[i];
     }
 
-    options.stepX       || (options.stepX       = (options.box[0][1] - options.box[0][0])/options.stepXRatio);
+    options.stepP       || (options.stepP       = (options.box[0][1] - options.box[0][0])/options.stepPRatio);
     options.sensibility || (options.sensibility = (options.box[1][1] - options.box[1][0])/options.sensibilityYRatio);
 
-    data = getBifurcation(options);
+    options.onProgress = function(p){
+      console.log('progress ', p);
+    }
 
-    d3.select('#chart1 svg')
-        .datum(data)
-        .call(chart);
-    
-    var drag = setDrag(options);
+    getBifurcation(options)
+      .then(({imageMatrix, width, height}) => {
 
-    d3.select('#chart1').call(drag);
+        var imgData = ctx.createImageData(width, height); // width x height
+        console.log("width, height", width, height)
+        var data = imgData.data;
+        // copy img byte-per-byte into our ImageData
+        for (var i = 0; i < width; i++) {
+          for (var j = 0; j < height; j++) {
+            for (var k = 0; k < 4; k++) { // 4 is RGBA
+              data[i*4+(height-1-j)*width*4+k] = (imageMatrix[i] && imageMatrix[i][j] && imageMatrix[i][j][k]) || 0;
+
+               //else {
+                //console.log('0', i, j, k)
+              //}
+            }
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        /*d3.select('#chart1 svg')
+            .datum(data)
+            .call(chart);*/
+
+        var drag = setDrag(options);
+
+        //d3.select('#chart1').call(drag);
+
+      });
 
   };
 
-  var reset = d3.select('#chart1').append("a").attr("class","reset-button").text("reset").on("click",function(){
+  /*var reset = d3.select('#chart1').append("a").attr("class","reset-button").text("reset").on("click",function(){
     drawBif();
-  });
+  });*/
 
   var setDrag = function(options){
       var dragX,dragY, startX, startY, box = options.box;
 
       var resetDrag = function(){
-        dragX = 0; 
+        dragX = 0;
         dragY = 0;
       };
         console.log("in setDrag");
 
       var resizeBox = function(x,y){
         console.log("in resizeBox");
-        rect.attr("width",Math.abs(x));  
+        rect.attr("width",Math.abs(x));
 
         if(x>=0){
-          rect.attr("x",startX);  
+          rect.attr("x",startX);
         } else {
-          rect.attr("x",startX + x); 
+          rect.attr("x",startX + x);
         }
 
-        
+
         rect.attr("height",Math.abs(y));
         if(y>=0){
-          rect.attr("y",startY);  
+          rect.attr("y",startY);
         } else {
-          rect.attr("y",startY + y); 
+          rect.attr("y",startY + y);
         }
 
       };
@@ -123,7 +150,7 @@ nv.addGraph(function() {
 
         //console.log("dragstart", d3.event, drag.origin());
         resetDrag();
-        
+
       }).on("dragend",function(){
         rect.remove();
 
@@ -138,7 +165,7 @@ nv.addGraph(function() {
           bottom : Math.max(startY, startY + dragY)+svgRect.top
         };
 
-        
+
 
         ratioPixelScale = [
           (box[0][1] - box[0][0])/(graphRect.right-graphRect.left),
@@ -156,7 +183,7 @@ nv.addGraph(function() {
         //console.log(newBox, dragRect, graphRect, ratioPixelScale, box);
 
         drawBif({box : newBox})
-        
+
 
       });
 
@@ -210,192 +237,79 @@ function sinAndCos() {
  * Simple test data generator
  */
 
-
-
-var findAttractors = function(p, fn, attrRange, firstValue, maxIteration, sensibility, verifAttractors){
-  !firstValue && (firstValue = Math.random());
-  !maxIteration && (maxIteration=1000);
-  !sensibility && (sensibility = 0.001);
-  !verifAttractors && (verifAttractors = 5);
-
-  var attractors = null, suite = [firstValue,], chaos = false, found = false, l = 1, attractors,t,k,m;
-
-  var next = function(){
-      suite.push(fn(p, suite[l-1]));
-      l++;
-  }
-
-  while (l < maxIteration && !found){
-    nextSuite = fn(p, suite[l-1])
-    for(var j = l; j > l/4; j--){
-      if(!found && (Math.abs(suite[j] - nextSuite) < sensibility)){
-        found = true;
-        cycle = l-j;
-
-        for(var t = 0; t < verifAttractors*cycle; t++) next();
-
-        attractors = suite.slice(l-cycle,l).sort();
-
-        for(var k = 0; k < attractors.length; k++){
-          if(found && Math.abs(suite[l-1-k] - suite[l-1-k-verifAttractors*cycle])>sensibility/10){
-            found = false;
-          }
-        }
-
-      }
-    }
-
-    if(!found){
-      next();
-      //console.log(l);
-    }
-
-  }
-  
-  if(!found){
-    chaos = true;
-    //console.log("chaos",p)
-    //throw new Error("not found in "+maxIteration+" iterations");
-    attractors = suite;
-  }
-
-  var selectedAttractors = [];
-
-  for(var i = 0; i < attractors.length; i++){
-    if(attractors[i] < attrRange[1] && attractors[i] > attrRange[0]){
-      selectedAttractors.push(attractors[i]);
-    }
-  }
-
-  if(chaos){
-    //throw new Error("chaos");
-    selectedAttractors = selectedAttractors.slice(-50);
-  }
-
-  return selectedAttractors.sort(function(a,b){return a-b});
-};
-
 var getBifurcation = function(options){//fn, box, step, firstValue, maxIteration, sensibility, verifAttractors){
 
   var pRange = options.box[0],
       attrRange = options.box[1],
-      minP = pRange[0], 
-      maxP = pRange[1], 
-      nIter = Math.ceil((maxP-minP)/options.stepX), attractors, graphs = [], x, attractors;
+      onProgress = options.onProgress,
+      stepP = options.stepP,
+      minP = pRange[0],
+      maxP = pRange[1],
+      minY = attrRange[0],
+      maxY = attrRange[1],
+      sensibility = options.sensibility,
+      nIter = Math.ceil((maxP-minP)/options.stepP), attractors, graphs = [], attractors;
+  let promises = [];
+  let counter = 0;
+  let p;
 
+  const attrValue = [0, 100, 100, 255];
+  const chaosValueMin = [100, 0, 0, 255];
+  const chaosValueMax = [100, 0, 100, 255];
+  const chaosValue = [0, 100, 0, 255];
+
+  const imageMatrix = [];
+  const yToMatrixIndex = function(y){
+    return Math.floor((y-minY)/sensibility);
+  }
+  const width = nIter;
+  const height = Math.ceil((maxY-minY)/sensibility);
   for(var i = 0; i < nIter; i++){
-    x = minP+i*options.stepX;
-    try {
-      attractors = findAttractors(x, options.fn, attrRange, options.firstValue, options.maxIteration, options.sensibility, options.verifAttractors);
+    p = minP+i*stepP;
+    imageMatrix.push([]);
+    const findAttractorsOpts = {
+      param: p,
+      fn: options.fn,
+      min: minY,
+      max: maxY,
+      maxIteration: options.maxIteration,
+      precision: sensibility/10,
+      verifAttractors: options.verifAttractors
+    }
 
-      for(var j =0; j < attractors.length; j++){
-        graphs[j] ||(graphs[j] = []);
-        graphs[j].push({x:x, y: attractors[j]});
+    promises.push(findAttractors(findAttractorsOpts).then(((p, i, attr) => {
+      counter++;
+      if(findAttractorsOpts.param < 3 && findAttractorsOpts.param > 2.99){
+        console.log(findAttractorsOpts, attr);
+      }
+      //onProgress && onProgress(counter/nIter);
+      if(attr.attractors){
+        attr.attractors.forEach((attr)=> {
+          const indexY = yToMatrixIndex(attr);
+          //console.log('attractor at', i, indexY);
+          imageMatrix[i][indexY] = attrValue;
+        })
       }
 
-    } catch (e) {
-      console.log(e);
-    }
+
+
+      if(attr.chaos){
+        attr.chaos.forEach((chaos)=> {
+          const indexYMin = yToMatrixIndex(chaos[0]);
+          const indexYMax = yToMatrixIndex(chaos[1]);
+          imageMatrix[i][indexYMin] = chaosValueMin;
+          imageMatrix[i][indexYMax] = chaosValueMax;
+          for(var indexY = indexYMin+1; indexY < indexYMax; indexY++){
+            imageMatrix[i][indexY] = chaosValue;
+          }
+        })
+      }
+
+    }).bind(null, p, i)));
   }
-  console.log(graphs.length);
-  return graphs.map(function(g, index){ return { values : g , key : index}; });
+  return Promise.all(promises)
+    .then(() => {
+      return {imageMatrix, width, height};
+    });
+
 };
-
-
-
-
-
-
-
-
-
-
-function graphs(o){//a,min,u0,fn) {
-
-  var a = o.param, min = o.min, u0 = o.u0, parabol = [],linear = [],
-      iterations = [], value = o.u0 || 0.75, valueBefore, fn = o.fn;
-
-  a ||(a= 3.576);
-  min || (min = 100);
-
-  //Data is represented as an array of {x,y} pairs.
-  for (var i = 0; i < 100; i++) {
-    parabol.push({x: i/100, y: fn(a,i/100)});
-    linear.push({x: i/100, y: i/100});
-  }
-
-  for (var i = 0; i < 1000; i++) {
-    valueBefore = value;
-    value = Math.max(fn(a,valueBefore),0);
-    if(i+2>min){
-      iterations.push({x: valueBefore, y: value});
-      iterations.push({x: value, y: value});      
-    }
-
-    console.log(value, valueBefore);
-  }
-
-  //Line chart data should be sent as an array of series objects.
-  return [
-    {
-      values: parabol,      //values - represents the array of {x,y} data points
-      key: 'Parabol Y = '+a+'*x*(1-x)', //key  - the name of the series.
-      color: '#ff7f0e'  //color - optional: choose your own line color.
-    },
-    {
-      values: linear,
-      key: 'linear X = Y',
-      color: '#2ca02c'
-    },
-    {
-      values: iterations,
-      key: 'iterations',
-      color: '#7777ff'
-    }
-  ];
-}
-/*
-nv.addGraph(function() {
-   chart = nv.models.lineChart()
-  .options({
-    margin: {left: 100, bottom: 100},
-    //x: function(d,i) { return i},
-    showXAxis: true,
-    showYAxis: true,
-    //transitionDuration: 250
-  })
-  ;
-
-  // chart sub-models (ie. xAxis, yAxis, etc) when accessed directly, return themselves, not the parent chart, so need to chain separately
-  chart.xAxis
-    .axisLabel("X")
-    //.tickFormat(d3.format(',.01f'));
-
-  chart.yAxis
-    .axisLabel('Y')
-    //.tickFormat(d3.format(',.01f'))
-    ;
-
-  var box = [[1, 3.8], [0, 10]],
-      stepX = (box[0][1] - box[0][0])/100,
-      iterations = 10000,
-      sensibility = (box[1][1] - box[1][0])/1000,
-      verifAttractors = 20,
-      firstValue = 0.75;
-
-
-
-  
-  d3.select('#chart2 svg')
-    .datum(graphs({param : 3.56, min : 100, u0 : 0.1, fn : }))
-    .call(chart);
-
-
-  //TODO: Figure out a good way to do this automatically
-  nv.utils.windowResize(chart.update);
-  //nv.utils.windowResize(function() { d3.select('#chart1 svg').call(chart) });
-
-  //chart.dispatch.on('stateChange', function(e) { nv.log('New State:', JSON.stringify(e)); });
-
-  return chart;
-});*/

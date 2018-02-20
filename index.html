@@ -50,13 +50,8 @@ a:hover {
 
 </style>
 <body class='with-3d-shadow with-transitions'>
-<div id="chart1" >
-  <svg style="height: 500px;"></svg>
-</div>
-
-<div id="chart2" >
-  <svg style="height: 500px;"></svg>
-</div>
+<canvas id="canvas" width="1000" height="1000" style="border:1px solid #000000;">
+</canvas>
 
 <body>
 
@@ -79,6 +74,5 @@ Chart 1 :
 <script src="lib/d3/src/models/bulletChart.js"></script>
 <script src="lib/d3/src/models/scatterChart.js"></script>
 
-
+<script src="bifurcation.js"></script>
 <script src="chart.js"></script>
-
