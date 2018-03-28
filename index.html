@@ -2,12 +2,23 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 
-<link href="lib/d3/src/nv.d3.css" rel="stylesheet" type="text/css">
-
 <style>
 
+
+.main-wrapper{
+  height: 100vh;
+  width: 100%;
+}
+
+.main-wrapper #canvas{
+  height: 100%;
+  width:100%;
+  border:0px solid #000000;
+}
+.
 body {
   overflow-y:scroll;
+  margin:0px;
 }
 
 text {
@@ -49,9 +60,12 @@ a:hover {
 
 
 </style>
-<body class='with-3d-shadow with-transitions'>
-<canvas id="canvas" width="1000" height="1000" style="border:1px solid #000000;">
-</canvas>
+<body style="margin:0px">
+<div class='main-wrapper'>
+  <canvas id="canvas">
+  </canvas>
+</div>
+
 
 <body>
 
@@ -73,6 +87,7 @@ Chart 1 :
 <script src="lib/d3/src/models/bullet.js"></script>
 <script src="lib/d3/src/models/bulletChart.js"></script>
 <script src="lib/d3/src/models/scatterChart.js"></script>
+<script src="lib/bluebird/bluebird.js"></script>
 
 <script src="bifurcation.js"></script>
 <script src="chart.js"></script>
