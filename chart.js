@@ -60,7 +60,6 @@ var getBifurcation = function(options){//fn, box, step, firstValue, maxIteration
   }
   const l = optsMap.length;
   return Promise.map(optsMap.reverse(), (findAttractorsOpts, i) => {
-    console.log("index", i)
     const index = l-i;
     const p = findAttractorsOpts.param;
     return findAttractors(findAttractorsOpts).then(attr => {
@@ -93,9 +92,13 @@ var getBifurcation = function(options){//fn, box, step, firstValue, maxIteration
       return col
 
     }).then(col => {
+      const yLog = 4;
+      //console.log("index", index*4+yLog*width*4, i, index, [data[0+yLog*width*4], data[1+yLog*width*4]], [data[4+yLog*width*4], data[4+yLog*width*4]])
+      console.log("index", i, index)
       for (var j = 0; j < height; j++) {
         for (var k = 0; k < 4; k++) { // 4 is RGBA
           data[index*4+(height-1-j)*width*4+k] = (col[j] && col[j][k]) || 0;
+          console.log("-", index*4+(height-1-j)*width*4+k)
         }
       }
       ctx.putImageData(imgData, 0, 0);
