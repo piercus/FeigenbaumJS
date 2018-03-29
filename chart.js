@@ -2,7 +2,8 @@
 var chart;
 
 var c = document.getElementById("canvas");
-var rect = document.getElementById("#rect");
+var rect = document.getElementById("rect");
+var wrapper = document.getElementById("wrapper");
 
 //c.addEventListener('mousedown', onMouseDown);
 var ctx = c.getContext("2d");
@@ -192,7 +193,7 @@ var drawBif = function(options, cb){
   /*var reset = d3.select('#chart1').append("a").attr("class","reset-button").text("reset").on("click",function(){
     drawBif();
   });*/
-//setDrag({el : c, box: [[0,0],[1,1]], rect })
+setDrag({el : wrapper, box: [[0,0],[1,1]], rect })
 
 drawBif();
   //return chart;

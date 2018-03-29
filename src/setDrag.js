@@ -1,18 +1,18 @@
 var resizeBox = function({w, h, x, y, rect}){
-	rect.attr("width",Math.abs(w));
+	rect.style.width = Math.abs(w)+"px";
 
 	if(w>=0){
-		rect.attr("x",x);
+		rect.style.left = (x)+"px";
 	} else {
-		rect.attr("x", w + x);
+		rect.style.left = (w + x)+"px";
 	}
 
 
-	rect.attr("height",Math.abs(h));
+	rect.style.height = Math.abs(h)+"px";
 	if(h>=0){
-		rect.attr("y",y);
+		rect.style.top = (y)+"px";
 	} else {
-		rect.attr("y",y + h);
+		rect.style.top = (y + h)+"px";
 	}
 
 };
