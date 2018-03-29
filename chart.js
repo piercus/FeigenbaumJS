@@ -10,7 +10,6 @@ ctx.canvas.height=window.innerHeight;
 
 
 var getBifurcation = function(options){//fn, box, step, firstValue, maxIteration, sensibility, verifAttractors){
-
   var pRange = options.box[0],
       attrRange = options.box[1],
       onProgress = options.onProgress,
@@ -19,7 +18,8 @@ var getBifurcation = function(options){//fn, box, step, firstValue, maxIteration
       maxP = pRange[1],
       minY = attrRange[0],
       maxY = attrRange[1],
-      width = options.width,
+      // dirty hack with the +1
+      width = options.width+1,
       height = options.height,
       ctx = options.ctx,
       sensibility = options.sensibility,
@@ -92,13 +92,16 @@ var getBifurcation = function(options){//fn, box, step, firstValue, maxIteration
       return col
 
     }).then(col => {
-      const yLog = 4;
+      //const yLog = 4;
       //console.log("index", index*4+yLog*width*4, i, index, [data[0+yLog*width*4], data[1+yLog*width*4]], [data[4+yLog*width*4], data[4+yLog*width*4]])
-      console.log("index", i, index)
+      //console.log("index", i, index, col)
       for (var j = 0; j < height; j++) {
-        for (var k = 0; k < 4; k++) { // 4 is RGBA
-          data[index*4+(height-1-j)*width*4+k] = (col[j] && col[j][k]) || 0;
-          console.log("-", index*4+(height-1-j)*width*4+k)
+        if(col[j]){
+          const nPixel = (index+(height-1-j)*width);
+          for (var k = 0; k < 4; k++) { // 4 is RGBA
+            data[nPixel*4+k] = (col[j] && col[j][k]) || 0;
+          }
+          //console.log("nPixel", nPixel)
         }
       }
       ctx.putImageData(imgData, 0, 0);
