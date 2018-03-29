@@ -2,6 +2,8 @@
 var chart;
 
 var c = document.getElementById("canvas");
+var rect = document.getElementById("#rect");
+
 //c.addEventListener('mousedown', onMouseDown);
 var ctx = c.getContext("2d");
 
@@ -190,98 +192,7 @@ var drawBif = function(options, cb){
   /*var reset = d3.select('#chart1').append("a").attr("class","reset-button").text("reset").on("click",function(){
     drawBif();
   });*/
-
-var setDrag = function(options){
-    var dragX,dragY, startX, startY, box = options.box;
-
-    var resetDrag = function(){
-      dragX = 0;
-      dragY = 0;
-    };
-      console.log("in setDrag");
-
-    var resizeBox = function(x,y){
-      console.log("in resizeBox");
-      rect.attr("width",Math.abs(x));
-
-      if(x>=0){
-        rect.attr("x",startX);
-      } else {
-        rect.attr("x",startX + x);
-      }
-
-
-      rect.attr("height",Math.abs(y));
-      if(y>=0){
-        rect.attr("y",startY);
-      } else {
-        rect.attr("y",startY + y);
-      }
-
-    };
-
-
-    var drag = d3.behavior.drag().on("drag",function(e,x,y){
-      dragX+=d3.event.dx;
-      dragY+= d3.event.dy;
-      //console.log("on drag",dragX,dragY,x,y);
-
-      resizeBox(dragX, dragY);
-
-    }).on("dragstart",function(){
-
-      d3.event.sourceEvent.stopPropagation(); // silence other listeners
-      var s = d3.select("#chart1 svg"),
-          left = s.node().getBoundingClientRect().left,
-          top = s.node().getBoundingClientRect().top;
-
-      startX = d3.event.sourceEvent.clientX-left;
-      startY = d3.event.sourceEvent.clientY-top;
-      rect = s.append("rect")
-        .attr("style", "fill:blue;stroke:blue;stroke-width:5;opacity:0.1")
-        .attr("x",startX)
-        .attr("y",startY);
-
-      //console.log("dragstart", d3.event, drag.origin());
-      resetDrag();
-
-    }).on("dragend",function(){
-      rect.remove();
-
-      var graphRect = d3.select(".nv-groups").node().getBoundingClientRect();
-
-      var svgRect = d3.select('#chart1 svg').node().getBoundingClientRect();
-
-      var dragRect = {
-        left : Math.min(startX, startX + dragX)+svgRect.left,
-        right : Math.max(startX, startX + dragX)+svgRect.left,
-        top : Math.min(startY, startY + dragY)+svgRect.top,
-        bottom : Math.max(startY, startY + dragY)+svgRect.top
-      };
-
-
-
-      ratioPixelScale = [
-        (box[0][1] - box[0][0])/(graphRect.right-graphRect.left),
-        (box[1][1] - box[1][0])/(graphRect.bottom-graphRect.top),
-      ];
-
-      newBox = [[
-          (dragRect.left-graphRect.left)*ratioPixelScale[0]+box[0][0],
-          (dragRect.right-graphRect.right)*ratioPixelScale[0]+box[0][1]
-        ],[
-          (-1)*(dragRect.bottom-graphRect.bottom)*ratioPixelScale[1]+box[1][0],
-          (-1)*(dragRect.top-graphRect.top)*ratioPixelScale[1]+box[1][1]
-      ]];
-
-      //console.log(newBox, dragRect, graphRect, ratioPixelScale, box);
-
-      drawBif({box : newBox})
-
-    });
-
-    return drag;
-}
+//setDrag({el : c, box: [[0,0],[1,1]], rect })
 
 drawBif();
   //return chart;
