@@ -1,4 +1,4 @@
-(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.findAttractors = f()}})(function(){var define,module,exports;return (function(){function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s}return e})()({1:[function(require,module,exports){
+(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.drawBif = f()}})(function(){var define,module,exports;return (function(){function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s}return e})()({1:[function(require,module,exports){
 const Bif = require('bifurcation');
 
 module.exports = function({fn, param, precision, min, max}){
@@ -9,10 +9,163 @@ module.exports = function({fn, param, precision, min, max}){
 	return bif.attractors({param, precision, min, max})
 }
 
-},{"bifurcation":2}],2:[function(require,module,exports){
+},{"bifurcation":3}],2:[function(require,module,exports){
+
+const calculateBifurcation = require('./calculateBifurcation')
+
+/**
+* @param {Array.<Array.<number>>} [box=[[1, 4], [0, 1]]]
+* @param {number} width
+* @param {number} height
+* @param ctx
+* @param {number} [verifAttractors=20]
+* @param {function} [fn=function(p, x){ return p*x*(1-x); }]
+* @return {Promise.<null>}
+*/
+
+
+module.exports = function(options = {}){
+  options || (options = {});
+
+	if(typeof(options.width) !== 'number'){
+		return Promise.reject(new Error('width is mandatory'))
+	}
+
+	if(typeof(options.height) !== 'number'){
+		return Promise.reject(new Error('height is mandatory'))
+	}
+
+  var defaultOptions = {
+      box                 : [[1, 4], [0, 1]],
+      verifAttractors     : 20,
+      fn                  : function(p, x){ return p*x*(1-x); }
+    };
+
+  for (var i in defaultOptions) if(defaultOptions.hasOwnProperty(i) && (!options || !options.hasOwnProperty(i))){
+    options[i] = defaultOptions[i];
+  }
+
+	if(!options.sensibility){
+		options.sensibility = [
+			(options.box[0][1] - options.box[0][0])/options.width,
+			(options.box[1][1] - options.box[1][0])/options.height
+		]
+	}
+
+  return _draw(options);
+};
+
+/**
+* @param box
+* @param stepP
+* @param width
+* @param height
+* @param context
+* @param sensibility
+* @param ctx
+*/
+
+
+const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensibility, verifAttractors){
+  var pRange = options.box[0],
+      attrRange = options.box[1],
+      stepP = options.sensibility[0],
+      minP = pRange[0],
+      maxP = pRange[1],
+      minY = attrRange[0],
+      maxY = attrRange[1],
+      width = options.width,
+      height = options.height,
+      ctx = options.ctx,
+      sensibility = options.sensibility[1],
+      nIter = Math.floor((maxP-minP)/stepP)-1, attractors, graphs = [], attractors;
+  let promises = [];
+  let counter = 0;
+  let p;
+
+  const attrValue = [0, 100, 100, 255];
+  const chaosValueMin = [100, 0, 0, 255];
+  const chaosValueMax = [100, 0, 100, 255];
+  const chaosValue = [0, 100, 0, 255];
+
+  const imageMatrix = [];
+  const yToMatrixIndex = function(y){
+    return Math.floor((y-minY)/sensibility);
+  }
+
+  const imgData = ctx.createImageData(width, height); // width x height
+  const data = imgData.data;
+  const optsMap = [];
+
+  for(var i = 0; i < nIter; i++){
+    p = minP+i*stepP;
+    imageMatrix.push([]);
+    const calculateBifurcationOpts = {
+      param: p,
+      fn: options.fn,
+      min: minY,
+      max: maxY,
+      maxIteration: options.maxIteration,
+      precision: sensibility/10,
+      verifAttractors: options.verifAttractors
+    }
+    optsMap.push(calculateBifurcationOpts);
+  }
+  const l = optsMap.length;
+  return Promise.map(optsMap.reverse(), (calculateBifurcationOpts, i) => {
+    const index = l-i;
+    const p = calculateBifurcationOpts.param;
+    return calculateBifurcation(calculateBifurcationOpts).then(attr => {
+
+      counter++;
+      if(calculateBifurcationOpts.param < 3 && calculateBifurcationOpts.param > 2.99){
+        console.log(calculateBifurcationOpts, attr);
+      }
+      const col = [];
+      if(attr.attractors){
+        attr.attractors.forEach((attr)=> {
+          const indexY = yToMatrixIndex(attr);
+          //console.log('attractor at', i, indexY);
+          col[indexY] = attrValue;
+        })
+      }
+
+      if(attr.chaos){
+        attr.chaos.forEach((chaos)=> {
+          const indexYMin = yToMatrixIndex(chaos[0]);
+          const indexYMax = yToMatrixIndex(chaos[1]);
+          col[indexYMin] = chaosValueMin;
+          col[indexYMax] = chaosValueMax;
+          for(var indexY = indexYMin+1; indexY < indexYMax; indexY++){
+            col[indexY] = chaosValue;
+          }
+        })
+      }
+      return col
+
+    }).then(col => {
+      //const yLog = 4;
+      //console.log("index", index*4+yLog*width*4, i, index, [data[0+yLog*width*4], data[1+yLog*width*4]], [data[4+yLog*width*4], data[4+yLog*width*4]])
+      //console.log("index", i, index, col)
+      for (var j = 0; j < height; j++) {
+        if(col[j]){
+          const nPixel = (index+(height-1-j)*width);
+          for (var k = 0; k < 4; k++) { // 4 is RGBA
+            data[nPixel*4+k] = (col[j] && col[j][k]) || 0;
+          }
+          //console.log("nPixel", nPixel)
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    })
+    .delay(0)
+  }, {concurrency: 1})
+};
+
+},{"./calculateBifurcation":1}],3:[function(require,module,exports){
 module.exports = require('./lib/Bifurcation')
 
-},{"./lib/Bifurcation":3}],3:[function(require,module,exports){
+},{"./lib/Bifurcation":4}],4:[function(require,module,exports){
 const findAttractors = require('./findAttractors');
 
 class Bifurcation {
@@ -72,7 +225,7 @@ class Bifurcation {
 
 module.exports = Bifurcation;
 
-},{"./findAttractors":8}],4:[function(require,module,exports){
+},{"./findAttractors":9}],5:[function(require,module,exports){
 const powerFn = require('./powerFn');
 
 const detectAttractor = function({
@@ -119,7 +272,7 @@ const detectAttractor = function({
 
 module.exports = detectAttractor;
 
-},{"./powerFn":6}],5:[function(require,module,exports){
+},{"./powerFn":7}],6:[function(require,module,exports){
 const detectAttractor = require('./detectAttractor');
 const powerFn = require('./powerFn');
 module.exports = function({
@@ -148,7 +301,7 @@ module.exports = function({
 	return attractors;
 }
 
-},{"./detectAttractor":4,"./powerFn":6}],6:[function(require,module,exports){
+},{"./detectAttractor":5,"./powerFn":7}],7:[function(require,module,exports){
 module.exports = function({fn, power}){
 	return function(x){
 		let res = x;
@@ -159,7 +312,7 @@ module.exports = function({fn, power}){
 	}
 }
 
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 module.exports = function({attrRange, attractors}){
 	var selectedAttractors = [];
 	for(var i = 0; i < attractors.length; i++){
@@ -170,7 +323,7 @@ module.exports = function({attrRange, attractors}){
 	return Promise.resolve(selectedAttractors)
 }
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 const studyChaos = require('./studyChaos');
 const getAttractors = require('./getAttractors');
 const filterAttractors = require('./filterAttractors');
@@ -225,7 +378,7 @@ module.exports = function({
 
 };
 
-},{"./filterAttractors":7,"./getAttractors":9,"./studyChaos":11}],9:[function(require,module,exports){
+},{"./filterAttractors":8,"./getAttractors":10,"./studyChaos":12}],10:[function(require,module,exports){
 const detectAttractorsPowers = require('./attractor/detectAttractorsPowers');
 
 module.exports = function({
@@ -257,7 +410,7 @@ module.exports = function({
 	});
 };
 
-},{"./attractor/detectAttractorsPowers":5}],10:[function(require,module,exports){
+},{"./attractor/detectAttractorsPowers":6}],11:[function(require,module,exports){
 /**
 * @param {Array.<number>} points - array of points
 * @param {number} difference or precision accepted to be in the range
@@ -307,7 +460,7 @@ module.exports = function({points, difference}){
 	return Promise.resolve(res);
 }
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 const PromiseBlue = require('bluebird');
 const studyOneChaos = require('./studyOneChaos');
 const pointsToRanges = require('./pointsToRanges');
@@ -355,7 +508,7 @@ module.exports = function({
 
 };
 
-},{"./pointsToRanges":10,"./studyOneChaos":12,"bluebird":13}],12:[function(require,module,exports){
+},{"./pointsToRanges":11,"./studyOneChaos":13,"bluebird":14}],13:[function(require,module,exports){
 const fn1 = function({
 	fn,
 	iter,
@@ -400,7 +553,7 @@ const fn2 = function({
 
 module.exports = fn2;
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 (function (process,global){
 /* @preserve
  * The MIT License (MIT)
@@ -6026,7 +6179,7 @@ module.exports = ret;
 },{"./es5":13}]},{},[4])(4)
 });                    ;if (typeof window !== 'undefined' && window !== null) {                               window.P = window.Promise;                                                     } else if (typeof self !== 'undefined' && self !== null) {                             self.P = self.Promise;                                                         }
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":14}],14:[function(require,module,exports){
+},{"_process":15}],15:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -6212,5 +6365,5 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}]},{},[1])(1)
+},{}]},{},[2])(2)
 });

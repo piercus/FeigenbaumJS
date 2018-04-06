@@ -17,13 +17,22 @@ var resizeBox = function({w, h, x, y, rect}){
 
 };
 
+var display = function({rect}){
+	rect.style.display = "block";
+};
+
+var hide = function({rect}){
+	rect.style.display = "none";
+}
+
 /**
 * @param {Object} options
 * @param {HTMLElement} options.el el that is clickable
 * @param {Box} options.box
 * @param {HTMLElement} options.rect rectangle HTMLElement
+* @param {function(dragging)} options.onSelect function that is called after the drop
 */
-var setDrag = function({el, box, rect}){
+var setDrag = function({el, box, rect, onSelect}){
     var dragX,
 			dragY,
 			startX,
@@ -38,13 +47,9 @@ var setDrag = function({el, box, rect}){
 
     el.addEventListener("mousemove",function(event){
 			if(dragging){
-				resizeBox({
-					w: event.x - dragging.x,
-					h: event.y - dragging.y,
-					x: dragging.x,
-					y: dragging.y,
-					rect: rect
-				})
+				dragging.w = event.x - dragging.x;
+				dragging.h = event.y - dragging.y;
+				resizeBox(dragging)
 			}
       //
       // dragY+= d3.event.dy;
@@ -56,8 +61,13 @@ var setDrag = function({el, box, rect}){
 		el.addEventListener("mousedown",function(event){
 			dragging = {
 				x : event.x,
-				y: event.y
+				y: event.y,
+				w:0,
+				h:0,
+				rect: rect
 			};
+			resizeBox(dragging)
+			display({rect})
 			event.stopPropagation();
       // d3.event.sourceEvent.stopPropagation(); // silence other listeners
       // var s = d3.select("#chart1 svg"),
@@ -77,6 +87,8 @@ var setDrag = function({el, box, rect}){
     })
 
 		el.addEventListener("mouseup",function(event){
+			hide({rect});
+			onSelect(dragging);
 			dragging = false;
       // rect.remove();
       //
