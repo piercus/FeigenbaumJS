@@ -9,9 +9,11 @@ module.exports = function({fn, param, precision, min, max}){
 	return bif.attractors({param, precision, min, max})
 }
 
-},{"bifurcation":3}],2:[function(require,module,exports){
+},{"bifurcation":4}],2:[function(require,module,exports){
 
 const calculateBifurcation = require('./calculateBifurcation')
+
+const shuffleArray = require('./shuffleArray')
 
 /**
 * @param {Array.<Array.<number>>} [box=[[1, 4], [0, 1]]]
@@ -24,7 +26,16 @@ const calculateBifurcation = require('./calculateBifurcation')
 */
 
 
-module.exports = function(options = {}){
+module.exports = function(options){
+	const promise = drawBifurcation(options);
+	options.stopped = false;
+	promise.stop = function(){
+		options.stopped = true;
+	};
+	return promise;
+}
+
+const drawBifurcation = function(options = {}){
   options || (options = {});
 
 	if(typeof(options.width) !== 'number'){
@@ -38,6 +49,7 @@ module.exports = function(options = {}){
   var defaultOptions = {
       box                 : [[1, 4], [0, 1]],
       verifAttractors     : 20,
+			progressFn          : function(p){ console.log('progress ', p);},
       fn                  : function(p, x){ return p*x*(1-x); }
     };
 
@@ -78,6 +90,7 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
       height = options.height,
       ctx = options.ctx,
       sensibility = options.sensibility[1],
+			progressFn = options.progressFn,
       nIter = Math.floor((maxP-minP)/stepP)-1, attractors, graphs = [], attractors;
   let promises = [];
   let counter = 0;
@@ -87,6 +100,7 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
   const chaosValueMin = [100, 0, 0, 255];
   const chaosValueMax = [100, 0, 100, 255];
   const chaosValue = [0, 100, 0, 255];
+	const emptyValue = [240, 240, 240, 255];
 
   const imageMatrix = [];
   const yToMatrixIndex = function(y){
@@ -103,6 +117,7 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
     const calculateBifurcationOpts = {
       param: p,
       fn: options.fn,
+			index: i,
       min: minY,
       max: maxY,
       maxIteration: options.maxIteration,
@@ -112,8 +127,12 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
     optsMap.push(calculateBifurcationOpts);
   }
   const l = optsMap.length;
-  return Promise.map(optsMap.reverse(), (calculateBifurcationOpts, i) => {
-    const index = l-i;
+	let progress = 0;
+  return Promise.map(shuffleArray(optsMap), (calculateBifurcationOpts, i) => {
+		if(options.stopped){
+			return Promise.resolve(null);
+		}
+    const index = calculateBifurcationOpts.index;
     const p = calculateBifurcationOpts.param;
     return calculateBifurcation(calculateBifurcationOpts).then(attr => {
 
@@ -147,25 +166,45 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
       //const yLog = 4;
       //console.log("index", index*4+yLog*width*4, i, index, [data[0+yLog*width*4], data[1+yLog*width*4]], [data[4+yLog*width*4], data[4+yLog*width*4]])
       //console.log("index", i, index, col)
+			if(options.stopped){
+				return Promise.resolve(null);
+			}
+			for (var j = 0; j < height; j++) {
+        if(!col[j]){
+					col[j] = emptyValue;
+				}
+      }
       for (var j = 0; j < height; j++) {
-        if(col[j]){
-          const nPixel = (index+(height-1-j)*width);
-          for (var k = 0; k < 4; k++) { // 4 is RGBA
-            data[nPixel*4+k] = (col[j] && col[j][k]) || 0;
-          }
-          //console.log("nPixel", nPixel)
+        const nPixel = (index+(height-1-j)*width);
+        for (var k = 0; k < 4; k++) { // 4 is RGBA
+          data[nPixel*4+k] = (col[j] && col[j][k]) || 0;
         }
+        //console.log("nPixel", nPixel)
       }
       ctx.putImageData(imgData, 0, 0);
+			progress++;
+			progressFn(progress/l);
     })
     .delay(0)
   }, {concurrency: 1})
 };
 
-},{"./calculateBifurcation":1}],3:[function(require,module,exports){
+},{"./calculateBifurcation":1,"./shuffleArray":3}],3:[function(require,module,exports){
+module.exports = function(array){
+	return array.map(item => {
+		return {
+			item,
+			random: Math.random()
+		}
+	}).sort((a, b) => {
+		return a.random < b.random;
+	}).map(o => o.item);
+};
+
+},{}],4:[function(require,module,exports){
 module.exports = require('./lib/Bifurcation')
 
-},{"./lib/Bifurcation":4}],4:[function(require,module,exports){
+},{"./lib/Bifurcation":5}],5:[function(require,module,exports){
 const findAttractors = require('./findAttractors');
 
 class Bifurcation {
@@ -225,7 +264,7 @@ class Bifurcation {
 
 module.exports = Bifurcation;
 
-},{"./findAttractors":9}],5:[function(require,module,exports){
+},{"./findAttractors":10}],6:[function(require,module,exports){
 const powerFn = require('./powerFn');
 
 const detectAttractor = function({
@@ -272,7 +311,7 @@ const detectAttractor = function({
 
 module.exports = detectAttractor;
 
-},{"./powerFn":7}],6:[function(require,module,exports){
+},{"./powerFn":8}],7:[function(require,module,exports){
 const detectAttractor = require('./detectAttractor');
 const powerFn = require('./powerFn');
 module.exports = function({
@@ -301,7 +340,7 @@ module.exports = function({
 	return attractors;
 }
 
-},{"./detectAttractor":5,"./powerFn":7}],7:[function(require,module,exports){
+},{"./detectAttractor":6,"./powerFn":8}],8:[function(require,module,exports){
 module.exports = function({fn, power}){
 	return function(x){
 		let res = x;
@@ -312,7 +351,7 @@ module.exports = function({fn, power}){
 	}
 }
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 module.exports = function({attrRange, attractors}){
 	var selectedAttractors = [];
 	for(var i = 0; i < attractors.length; i++){
@@ -323,7 +362,7 @@ module.exports = function({attrRange, attractors}){
 	return Promise.resolve(selectedAttractors)
 }
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 const studyChaos = require('./studyChaos');
 const getAttractors = require('./getAttractors');
 const filterAttractors = require('./filterAttractors');
@@ -378,7 +417,7 @@ module.exports = function({
 
 };
 
-},{"./filterAttractors":8,"./getAttractors":10,"./studyChaos":12}],10:[function(require,module,exports){
+},{"./filterAttractors":9,"./getAttractors":11,"./studyChaos":13}],11:[function(require,module,exports){
 const detectAttractorsPowers = require('./attractor/detectAttractorsPowers');
 
 module.exports = function({
@@ -410,7 +449,7 @@ module.exports = function({
 	});
 };
 
-},{"./attractor/detectAttractorsPowers":6}],11:[function(require,module,exports){
+},{"./attractor/detectAttractorsPowers":7}],12:[function(require,module,exports){
 /**
 * @param {Array.<number>} points - array of points
 * @param {number} difference or precision accepted to be in the range
@@ -460,7 +499,7 @@ module.exports = function({points, difference}){
 	return Promise.resolve(res);
 }
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 const PromiseBlue = require('bluebird');
 const studyOneChaos = require('./studyOneChaos');
 const pointsToRanges = require('./pointsToRanges');
@@ -508,7 +547,7 @@ module.exports = function({
 
 };
 
-},{"./pointsToRanges":11,"./studyOneChaos":13,"bluebird":14}],13:[function(require,module,exports){
+},{"./pointsToRanges":12,"./studyOneChaos":14,"bluebird":15}],14:[function(require,module,exports){
 const fn1 = function({
 	fn,
 	iter,
@@ -553,7 +592,7 @@ const fn2 = function({
 
 module.exports = fn2;
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 (function (process,global){
 /* @preserve
  * The MIT License (MIT)
@@ -6179,7 +6218,7 @@ module.exports = ret;
 },{"./es5":13}]},{},[4])(4)
 });                    ;if (typeof window !== 'undefined' && window !== null) {                               window.P = window.Promise;                                                     } else if (typeof self !== 'undefined' && self !== null) {                             self.P = self.Promise;                                                         }
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":15}],15:[function(require,module,exports){
+},{"_process":16}],16:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 

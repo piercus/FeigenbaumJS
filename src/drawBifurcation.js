@@ -1,6 +1,8 @@
 
 const calculateBifurcation = require('./calculateBifurcation')
 
+const shuffleArray = require('./shuffleArray')
+
 /**
 * @param {Array.<Array.<number>>} [box=[[1, 4], [0, 1]]]
 * @param {number} width
@@ -12,7 +14,16 @@ const calculateBifurcation = require('./calculateBifurcation')
 */
 
 
-module.exports = function(options = {}){
+module.exports = function(options){
+	const promise = drawBifurcation(options);
+	options.stopped = false;
+	promise.stop = function(){
+		options.stopped = true;
+	};
+	return promise;
+}
+
+const drawBifurcation = function(options = {}){
   options || (options = {});
 
 	if(typeof(options.width) !== 'number'){
@@ -26,6 +37,7 @@ module.exports = function(options = {}){
   var defaultOptions = {
       box                 : [[1, 4], [0, 1]],
       verifAttractors     : 20,
+			progressFn          : function(p){ console.log('progress ', p);},
       fn                  : function(p, x){ return p*x*(1-x); }
     };
 
@@ -66,6 +78,7 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
       height = options.height,
       ctx = options.ctx,
       sensibility = options.sensibility[1],
+			progressFn = options.progressFn,
       nIter = Math.floor((maxP-minP)/stepP)-1, attractors, graphs = [], attractors;
   let promises = [];
   let counter = 0;
@@ -75,6 +88,7 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
   const chaosValueMin = [100, 0, 0, 255];
   const chaosValueMax = [100, 0, 100, 255];
   const chaosValue = [0, 100, 0, 255];
+	const emptyValue = [240, 240, 240, 255];
 
   const imageMatrix = [];
   const yToMatrixIndex = function(y){
@@ -91,6 +105,7 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
     const calculateBifurcationOpts = {
       param: p,
       fn: options.fn,
+			index: i,
       min: minY,
       max: maxY,
       maxIteration: options.maxIteration,
@@ -100,8 +115,12 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
     optsMap.push(calculateBifurcationOpts);
   }
   const l = optsMap.length;
-  return Promise.map(optsMap.reverse(), (calculateBifurcationOpts, i) => {
-    const index = l-i;
+	let progress = 0;
+  return Promise.map(shuffleArray(optsMap), (calculateBifurcationOpts, i) => {
+		if(options.stopped){
+			return Promise.resolve(null);
+		}
+    const index = calculateBifurcationOpts.index;
     const p = calculateBifurcationOpts.param;
     return calculateBifurcation(calculateBifurcationOpts).then(attr => {
 
@@ -135,16 +154,32 @@ const _draw = function(options){//fn, box, step, firstValue, maxIteration, sensi
       //const yLog = 4;
       //console.log("index", index*4+yLog*width*4, i, index, [data[0+yLog*width*4], data[1+yLog*width*4]], [data[4+yLog*width*4], data[4+yLog*width*4]])
       //console.log("index", i, index, col)
+			if(options.stopped){
+				return Promise.resolve(null);
+			}
+			for (var j = 0; j < height; j++) {
+        if(!col[j]){
+					col[j] = emptyValue;
+				}
+      }
       for (var j = 0; j < height; j++) {
-        if(col[j]){
-          const nPixel = (index+(height-1-j)*width);
-          for (var k = 0; k < 4; k++) { // 4 is RGBA
-            data[nPixel*4+k] = (col[j] && col[j][k]) || 0;
-          }
-          //console.log("nPixel", nPixel)
+        const nPixel = (index+(height-1-j)*width);
+        for (var k = 0; k < 4; k++) { // 4 is RGBA
+          data[nPixel*4+k] = (col[j] && col[j][k]) || 0;
         }
+        //console.log("nPixel", nPixel)
       }
       ctx.putImageData(imgData, 0, 0);
+
+			drawCoordinates({
+				ctx,
+				box: options.box,
+				width: options.width,
+				height: options.height
+			});
+
+			progress++;
+			progressFn(progress/l);
     })
     .delay(0)
   }, {concurrency: 1})

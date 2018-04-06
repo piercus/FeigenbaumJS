@@ -4,6 +4,7 @@ var chart;
 var c = document.getElementById("canvas");
 var rect = document.getElementById("rect");
 var wrapper = document.getElementById("wrapper");
+var message = document.getElementById("message");
 
 //c.addEventListener('mousedown', onMouseDown);
 var ctx = c.getContext("2d");
@@ -11,27 +12,72 @@ var ctx = c.getContext("2d");
 ctx.canvas.width=window.innerWidth;
 ctx.canvas.height=window.innerHeight;
 
+const progressFn = function(p){
+  message.innerHTML = Math.floor(p*100)+'%';
+};
+
+let bif;
+let dragOptions;
   /*var reset = d3.select('#chart1').append("a").attr("class","reset-button").text("reset").on("click",function(){
     drawBif();
   });*/
 /**
 * @param {Dragging} dragging
 */
-const onSelect = function(box, dragging){
-  console.log('onSelect');
+const onSelect = function(dragOptions, dragging){
+  bif.stop();
+  const boxW = dragOptions.box[0][1] - dragOptions.box[0][0];
+  const boxH = dragOptions.box[1][1] - dragOptions.box[1][0];
+
+  const xRatio = boxW/dragOptions.width;
+  const startX = dragOptions.box[0][0] + dragging.x*xRatio;
+  const endX = startX + dragging.w*xRatio;
+
+  const yRatio = boxH/dragOptions.height;
+  const startY = dragOptions.box[1][0] + dragging.y*yRatio;
+  const endY = startY + dragging.h*yRatio;
+
+  dragOptions.box = [[
+      Math.min(startX, endX),
+      Math.max(startX, endX)
+    ],[
+      Math.min(startY, endY),
+      Math.max(startY, endY)
+  ]];
+
+  drawBif({
+    ctx,
+    box: dragOptions.box,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    progressFn
+  });
 }
-const box = [[0,0],[1,1]];
-setDrag({
+const box = [[1, 4], [0, 1]];
+dragOptions = {
   el : wrapper,
   box,
-  rect,
-  onSelect: onSelect.bind(this, box)
-})
-
-drawBif({
-  ctx,
   width: window.innerWidth,
-  height: window.innerHeight
+  height: window.innerHeight,
+  rect
+};
+
+dragOptions.onSelect = onSelect.bind(this, dragOptions);
+
+const onReset = function(){
+
+};
+
+
+
+setDrag(dragOptions)
+
+bif = drawBif({
+  ctx,
+  box: dragOptions.box,
+  width: window.innerWidth,
+  height: window.innerHeight,
+  progressFn: progressFn
 });
   //return chart;
 //});
