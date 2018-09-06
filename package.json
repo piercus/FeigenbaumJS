@@ -1,0 +1,27 @@
+{
+  "name": "feigenbaumjs",
+  "version": "1.0.0",
+  "description": "FeigenbaumJS ============",
+  "main": "bifurcation.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "dependencies": {
+    "bifurcation": "^1.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "xo",
+    "build": "browserify -o bifurcation.js -e src/drawBifurcation.js -s drawBif"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/piercus/FeigenbaumJS.git"
+  },
+  "author": "Pierre Colle",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/piercus/FeigenbaumJS/issues"
+  },
+  "homepage": "https://github.com/piercus/FeigenbaumJS#readme"
+}

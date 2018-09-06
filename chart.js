@@ -24,30 +24,12 @@ let dragOptions;
 /**
 * @param {Dragging} dragging
 */
-const onSelect = function(dragOptions, dragging){
+const onSelect = function(dragOptions, {box}){
   bif.stop();
-  const boxW = dragOptions.box[0][1] - dragOptions.box[0][0];
-  const boxH = dragOptions.box[1][1] - dragOptions.box[1][0];
 
-  const xRatio = boxW/dragOptions.width;
-  const startX = dragOptions.box[0][0] + dragging.x*xRatio;
-  const endX = startX + dragging.w*xRatio;
-
-  const yRatio = boxH/dragOptions.height;
-  const startY = dragOptions.box[1][0] + dragging.y*yRatio;
-  const endY = startY + dragging.h*yRatio;
-
-  dragOptions.box = [[
-      Math.min(startX, endX),
-      Math.max(startX, endX)
-    ],[
-      Math.min(startY, endY),
-      Math.max(startY, endY)
-  ]];
-
-  drawBif({
+  bif = drawBif({
     ctx,
-    box: dragOptions.box,
+    box: box,
     width: window.innerWidth,
     height: window.innerHeight,
     progressFn
@@ -67,7 +49,6 @@ dragOptions.onSelect = onSelect.bind(this, dragOptions);
 const onReset = function(){
 
 };
-
 
 
 setDrag(dragOptions)

@@ -21,6 +21,32 @@ var display = function({rect}){
 	rect.style.display = "block";
 };
 
+const draggingToBox = function({
+	previousBox,
+	width,
+	height,
+	dragging
+}){
+	const boxW = previousBox[0][1] - previousBox[0][0];
+  const boxH = previousBox[1][1] - previousBox[1][0];
+
+  const xRatio = boxW/dragOptions.width;
+  const startX = previousBox[0][0] + dragging.x*xRatio;
+  const endX = startX + dragging.w*xRatio;
+
+  const yRatio = boxH/dragOptions.height;
+  const startY = previousBox[1][1] - dragging.y*yRatio;
+  const endY = startY - dragging.h*yRatio;
+
+  return [[
+      Math.min(startX, endX),
+      Math.max(startX, endX)
+    ],[
+      Math.min(startY, endY),
+      Math.max(startY, endY)
+  ]];
+}
+
 var hide = function({rect}){
 	rect.style.display = "none";
 }
@@ -32,11 +58,13 @@ var hide = function({rect}){
 * @param {HTMLElement} options.rect rectangle HTMLElement
 * @param {function(dragging)} options.onSelect function that is called after the drop
 */
-var setDrag = function({el, box, rect, onSelect}){
+var setDrag = function({el, box, rect, onSelect, width, height}){
     var dragX,
 			dragY,
 			startX,
 			startY;
+
+		let currentBox = box;
 
 		var dragging = false;
 
@@ -88,7 +116,14 @@ var setDrag = function({el, box, rect, onSelect}){
 
 		el.addEventListener("mouseup",function(event){
 			hide({rect});
-			onSelect(dragging);
+			const newBox = draggingToBox({
+				previousBox: currentBox,
+				dragging,
+				width,
+				height
+			});
+			currentBox = newBox;
+			onSelect({box: newBox});
 			dragging = false;
       // rect.remove();
       //
